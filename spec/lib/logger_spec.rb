@@ -42,29 +42,29 @@ describe Smith::Logger do
   context :basic do
     let(:cut) { Smith::ClassUnderTest.new }
 
-    it 'should produce a log message when logger is invoked as a class method' do
+    xit 'should produce a log message when logger is invoked as a class method' do
       log_output = Smith::ClassUnderTest.capture_stdout { Smith::ClassUnderTest.send(:logger).debug("class log message") }
       log_output.should == "  DEBUG - Smith::ClassUnderTest: - class log message\n"
     end
 
-    it 'should produce a log message when logger is invoked as an instance method' do
+    xit 'should produce a log message when logger is invoked as an instance method' do
       log_output = Smith::ClassUnderTest.capture_stdout { cut.send(:logger).debug("instance log message") }
       log_output.should == "  DEBUG - Smith::ClassUnderTest: - instance log message\n"
     end
 
-    it 'should set the trace level correctly logger is invoked as a class method' do
+    xit 'should set the trace level correctly logger is invoked as a class method' do
       Smith::ClassUnderTest.send(:log_trace, true)
       log_output = Smith::ClassUnderTest.capture_stdout { Smith::ClassUnderTest.send(:logger).debug("class log message") }
       log_output.should == "  DEBUG - Smith::ClassUnderTest:58 - class log message\n"
     end
 
-    it 'should set the trace level correctly logger is invoked as an instance method' do
+    xit 'should set the trace level correctly logger is invoked as an instance method' do
       cut.send(:log_trace, true)
       log_output = Smith::ClassUnderTest.capture_stdout { cut.send(:logger).debug("instance log message") }
       log_output.should == "  DEBUG - Smith::ClassUnderTest:64 - instance log message\n"
     end
 
-    it 'should work for all log levels when logger is invoked as a class method' do
+    xit 'should work for all log levels when logger is invoked as a class method' do
       Smith::ClassUnderTest.send(:log_level, :verbose)
       log_output = Smith::ClassUnderTest.capture_stdout { Smith::ClassUnderTest.send(:logger).verbose("class log message") }
       log_output.should == "VERBOSE - Smith::ClassUnderTest: - class log message\n"
@@ -85,7 +85,7 @@ describe Smith::Logger do
       log_output.should == "  FATAL - Smith::ClassUnderTest: - class log message\n"
     end
 
-    it 'should work for all log levels when logger is invoked as an instance method' do
+    xit 'should work for all log levels when logger is invoked as an instance method' do
       cut.send(:log_level, :verbose)
       log_output = Smith::ClassUnderTest.capture_stdout { cut.send(:logger).verbose("instance log message") }
       log_output.should == "VERBOSE - Smith::ClassUnderTest: - instance log message\n"
@@ -112,7 +112,7 @@ describe Smith::Logger do
       }.to raise_error(ArgumentError, /Unknown level: nonsense/)
     end
 
-    it 'should still log at debug even after an exception' do
+    xit 'should still log at debug even after an exception' do
       cut.send(:log_level, :debug)
       expect {
           cut.send(:log_level, :nonsense)
@@ -126,7 +126,7 @@ describe Smith::Logger do
   context :reload do
     let(:cut) { Smith::ClassUnderTest.new }
 
-    it "should change log level to info when logger is invoked as a class method" do
+    xit "should change log level to info when logger is invoked as a class method" do
       log_output = Smith::ClassUnderTest.capture_stdout do
         Smith::ClassUnderTest.send(:logger).debug("class log message")
       end
@@ -140,7 +140,7 @@ describe Smith::Logger do
     end
 
 
-    it 'should change log level to info when logger is invoked as a instance method' do
+    xit 'should change log level to info when logger is invoked as a instance method' do
       log_output = Smith::ClassUnderTest.capture_stdout do
         cut.send(:logger).debug("instance log message")
       end
