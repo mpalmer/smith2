@@ -32,24 +32,15 @@ module Smith
 
         @channel_completion = EM::Completion.new
         @queue_completion = EM::Completion.new
-        @exchange_completion = EM::Completion.new
         @requeue_options_completion = EM::Completion.new
 
         @reply_queues = {}
 
         open_channel(:prefetch => prefetch) do |channel|
-          @channel_completion.succeed(channel)
-          channel.direct(@queue_def.normalise, @options.exchange) do |exchange|
-            @exchange_completion.succeed(exchange)
-          end
-        end
-
-        open_channel(:prefetch => prefetch) do |channel|
           channel.queue(@queue_def.normalise, @options.queue) do |queue|
-            @exchange_completion.completion do |exchange|
-              queue.bind(exchange, :routing_key => @queue_def.normalise)
+            queue.bind(opts[:exchange] || '') do
               @queue_completion.succeed(queue)
-              @requeue_options_completion.succeed(:exchange => exchange, :queue => queue)
+              @requeue_options_completion.succeed(:queue => queue)
             end
           end
         end
@@ -65,15 +56,13 @@ module Smith
         if @reply_queues[reply_queue_name]
           blk.call(@reply_queues[reply_queue_name])
         else
-          @exchange_completion.completion do |exchange|
-            logger.debug { "Attaching to reply queue: #{reply_queue_name}" }
+          logger.debug { "Attaching to reply queue: #{reply_queue_name}" }
 
-            queue_def = QueueDefinition.new(reply_queue_name, :auto_delete => true, :immediate => true, :mandatory => true, :durable => false)
+          queue_def = QueueDefinition.new(reply_queue_name, :auto_delete => true, :immediate => true, :mandatory => true, :durable => false)
 
-            Smith::Messaging::Sender.new(queue_def) do |sender|
-              @reply_queues[reply_queue_name] = sender
-              blk.call(sender)
-            end
+          Smith::Messaging::Sender.new(queue_def) do |sender|
+            @reply_queues[reply_queue_name] = sender
+            blk.call(sender)
           end
         end
       end
@@ -157,15 +146,11 @@ module Smith
       end
 
       def delete(&blk)
-        @exchange_completion.completion do |exchange|
-          @queue_completion.completion do |queue|
-            @channel_completion.completion do |channel|
-              queue.unbind(exchange) do
-                queue.delete do
-                  exchange.delete do
-                    channel.close(&blk)
-                  end
-                end
+        @queue_completion.completion do |queue|
+          @channel_completion.completion do |channel|
+            queue.unbind(channel.default_exchange) do
+              queue.delete do
+                channel.close(&blk)
               end
             end
           end

@@ -29,18 +29,30 @@ module Smith
 
         open_channel(:prefetch => prefetch) do |channel|
           @channel_completion.succeed(channel)
-          channel.direct(@queue_def.normalise, @options.exchange) do |exchange|
+          channel.__send__(opts[:exchange_type] || :direct, @queue_def.normalise, @options.exchange) do |exchange|
 
             exchange.on_return do |basic_return,metadata,payload|
               logger.error { "#{@acl_type_cache[metadata.type].new.parse_from_string} returned! Exchange: #{reply_code.exchange}, reply_code: #{basic_return.reply_code}, reply_text: #{basic_return.reply_text}" }
               logger.error { "Properties: #{metadata.properties}" }
             end
 
-            channel.queue(@queue_def.normalise, @options.queue) do |queue|
-              queue.bind(exchange, :routing_key => @queue_def.normalise)
+            if opts[:exchange_type].nil? || opts[:exchange_type] == :direct
+              # The behaviour for a direct exchange, in Smith terms, is that
+              # every message sent to the exchange will end up in the queue
+              # for later processing, so we need to create the queue and
+              # bind it before any messages go through, otherwise there will
+              # be Sadness.
+              channel.queue(@queue_def.normalise, @options.queue) do |queue|
+                queue.bind(exchange, :routing_key => @queue_def.normalise)
 
-              @queue_completion.succeed(queue)
+                @queue_completion.succeed(queue)
+                @exchange_completion.succeed(exchange)
+              end
+            else
+              # As soon as the exchange is up, we're done.
               @exchange_completion.succeed(exchange)
+              # And there's no queue.
+              @queue_completion.succeed(nil)
             end
           end
         end
@@ -122,11 +134,15 @@ module Smith
       end
 
       def delete(&blk)
-        @queue_completion.completion do |queue|
-          queue.delete do
-            @exchange_completion.completion do |exchange|
-              exchange.delete do
-                @channel_completion.completion do |channel|
+        @exchange_completion.completion do |exchange|
+          exchange.delete do
+            @channel_completion.completion do |channel|
+              @queue_completion.completion do |queue|
+                if queue.delete
+                  queue.delete do
+                    channel.close(&blk)
+                  end
+                else
                   channel.close(&blk)
                 end
               end
@@ -142,8 +158,12 @@ module Smith
 
       def status(&blk)
         @queue_completion.completion do |queue|
-          queue.status do |num_messages, num_consumers|
-            blk.call(num_messages, num_consumers)
+          if queue
+            queue.status do |num_messages, num_consumers|
+              blk.call(num_messages, num_consumers)
+            end
+          else
+            blk.call(nil, nil)
           end
         end
       end
